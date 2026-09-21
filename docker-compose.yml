@@ -1,0 +1,11 @@
+services:
+  legacy:
+    build:
+      context: ./implementation/legacy-monolith
+    ports:
+      - "8080:8080"
+  reactive:
+    build:
+      context: ./implementation/reactive-vertx
+    ports:
+      - "8081:8081"
