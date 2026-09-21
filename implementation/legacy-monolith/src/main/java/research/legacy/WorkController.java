@@ -23,11 +23,11 @@ public class WorkController {
 
         // Deliberately blocking: the request thread waits synchronously for PostgreSQL.
         jdbc.queryForObject(
-                "SELECT id, payload FROM work_items " +
-                "WHERE id = ? AND pg_sleep(? / 1000.0) IS NULL",
+                "SELECT id, payload, pg_sleep(? / 1000.0) AS delay_done " +
+                "FROM work_items WHERE id = ?",
                 (rs, rowNum) -> rs.getLong("id"),
-                boundedItemId,
-                boundedDelay);
+                boundedDelay,
+                boundedItemId);
 
         return "legacy-ok";
     }
