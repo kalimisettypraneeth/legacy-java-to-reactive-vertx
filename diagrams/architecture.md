@@ -1,19 +1,46 @@
-# Architecture Diagram
+# Architecture Diagrams
 
-```mermaid
+## End-to-end experiment
+
+~~~mermaid
 flowchart LR
-    L[Load Generator] --> B[Blocking Java Monolith]
-    L --> R[Reactive Vert.x Service]
+    L[Load Generator / k6] --> B[Spring + Tomcat]
+    L --> R[Vert.x HTTP]
 
-    B --> BT[Worker Thread]
-    BT --> BI[Blocking Wait]
-    BI --> BR[Response]
+    B --> J[JDBC / HikariCP]
+    J --> P[(PostgreSQL)]
+    P --> S1[pg_sleep / DB wait]
+    S1 --> J
 
-    R --> EV[Event Loop]
-    EV --> T[Async Timer / I/O]
-    T --> RR[Continuation]
-    RR --> EV
-    EV --> RSP[Response]
-```
+    R --> V[Reactive PostgreSQL Client]
+    V --> P
+    P --> S2[pg_sleep / DB wait]
+    S2 --> V
 
-The diagram isolates the execution-model difference used by the reference implementation.
+    J --> B
+    V --> R
+~~~
+
+## Execution-model difference
+
+~~~mermaid
+sequenceDiagram
+    participant C as Client
+    participant B as Blocking Service
+    participant R as Reactive Service
+    participant DB as PostgreSQL
+
+    C->>B: HTTP /work
+    B->>DB: JDBC query
+    Note over B: Worker thread waits
+    DB-->>B: Row
+    B-->>C: 200
+
+    C->>R: HTTP /work
+    R->>DB: Async query
+    Note over R: Event loop remains available
+    DB-->>R: Row / callback
+    R-->>C: 200
+~~~
+
+The controlled experiment changes the database client and execution model while keeping the logical operation, PostgreSQL fixture and requested delay equivalent.
