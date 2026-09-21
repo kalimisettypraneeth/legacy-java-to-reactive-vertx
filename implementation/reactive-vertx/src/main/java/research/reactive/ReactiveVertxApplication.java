@@ -4,7 +4,6 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.pgclient.PgBuilder;
 import io.vertx.pgclient.PgConnectOptions;
@@ -21,20 +20,14 @@ public class ReactiveVertxApplication extends AbstractVerticle {
 
     @Override
     public void start(Promise<Void> startPromise) {
-        String host = env("DB_HOST", "postgres");
-        int port = Integer.parseInt(env("DB_PORT", "5432"));
-        String database = env("DB_NAME", "research");
-        String user = env("DB_USER", "research");
-        String password = env("DB_PASSWORD", "research");
-        int poolSize = Integer.parseInt(env("DB_POOL_SIZE", "20"));
-
         PgConnectOptions connect = new PgConnectOptions()
-                .setHost(host)
-                .setPort(port)
-                .setDatabase(database)
-                .setUser(user)
-                .setPassword(password);
+                .setHost(env("DB_HOST", "postgres"))
+                .setPort(Integer.parseInt(env("DB_PORT", "5432")))
+                .setDatabase(env("DB_NAME", "research"))
+                .setUser(env("DB_USER", "research"))
+                .setPassword(env("DB_PASSWORD", "research"));
 
+        int poolSize = Integer.parseInt(env("DB_POOL_SIZE", "20"));
         db = PgBuilder.pool()
                 .with(new PoolOptions().setMaxSize(poolSize))
                 .connectingTo(connect)
@@ -52,11 +45,11 @@ public class ReactiveVertxApplication extends AbstractVerticle {
             long itemId = parseItemId(ctx.request().getParam("itemId"));
 
             // Non-blocking: the event loop submits the PostgreSQL operation and is released
-            // while the database is waiting on pg_sleep().
+            // while PostgreSQL is waiting on pg_sleep().
             db.preparedQuery(
-                    "SELECT id, payload FROM work_items " +
-                    "WHERE id = $1 AND pg_sleep($2) IS NULL")
-              .execute(Tuple.of(itemId, delayMs / 1000.0))
+                    "SELECT id, payload, pg_sleep($1 / 1000.0) AS delay_done " +
+                    "FROM work_items WHERE id = $2")
+              .execute(Tuple.of(delayMs, itemId))
               .onSuccess(rows -> {
                   if (rows.rowCount() == 1) {
                       ctx.response().end("reactive-ok");
@@ -67,8 +60,9 @@ public class ReactiveVertxApplication extends AbstractVerticle {
               .onFailure(err -> ctx.response().setStatusCode(500).end("database-error"));
         });
 
-        HttpServer server = vertx.createHttpServer();
-        server.requestHandler(router).listen(8081)
+        vertx.createHttpServer()
+              .requestHandler(router)
+              .listen(8081)
               .onSuccess(ignored -> startPromise.complete())
               .onFailure(startPromise::fail);
     }
