@@ -1,11 +1,44 @@
 services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: research
+      POSTGRES_USER: research
+      POSTGRES_PASSWORD: research
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U research -d research"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   legacy:
     build:
       context: ./implementation/legacy-monolith
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/research
+      DB_USER: research
+      DB_PASSWORD: research
+      DB_POOL_SIZE: 20
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
+
   reactive:
     build:
       context: ./implementation/reactive-vertx
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: research
+      DB_USER: research
+      DB_PASSWORD: research
+      DB_POOL_SIZE: 20
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8081:8081"
