@@ -2,6 +2,7 @@ import http from "k6/http";
 import { check, sleep } from "k6";
 
 export const options = {
+  summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
   scenarios: {
     concurrency_ramp: {
       executor: "ramping-vus",
@@ -25,4 +26,12 @@ export default function () {
   const response = http.get(`${BASE_URL}/work?delayMs=${DELAY_MS}`);
   check(response, { "HTTP 200": (r) => r.status === 200 });
   sleep(0.01);
+}
+
+// Nested metric values consumed by analyze_summary.py. A summary is aggregate data.
+export function handleSummary(data) {
+  return {
+    [__ENV.SUMMARY || "benchmark-results/k6-summary.json"]: JSON.stringify(data, null, 2),
+    stdout: "Exploratory ramp complete. Aggregate summary saved; inspect errors and checks.\n"
+  };
 }

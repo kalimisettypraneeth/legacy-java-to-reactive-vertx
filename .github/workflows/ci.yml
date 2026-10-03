@@ -12,6 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate benchmark analysis
+        run: |
+          python3 -m unittest discover -s benchmark -p 'test_*.py'
+          bash -n benchmark/run-local.sh paper/ieee/build.sh
+
       - name: Build and start stack
         run: docker compose up --build -d
 

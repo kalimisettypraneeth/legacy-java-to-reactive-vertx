@@ -1,37 +1,59 @@
 #!/usr/bin/env python3
-"""Convert a k6 --summary-export JSON file into a compact CSV table."""
+"""Validate and export supported k6 aggregate summaries; never invent metrics."""
+import argparse
 import csv
 import json
-import sys
+import math
 from pathlib import Path
 
-if len(sys.argv) != 2:
-    raise SystemExit("usage: python benchmark/analyze_summary.py <summary.json>")
-
-src = Path(sys.argv[1])
-data = json.loads(src.read_text())
-metrics = data.get("metrics", {})
-
-def value(metric, key):
-    return metrics.get(metric, {}).get("values", {}).get(key, "")
-
-rows = [
-    ("http_req_duration", "avg_ms", value("http_req_duration", "avg")),
-    ("http_req_duration", "p50_ms", value("http_req_duration", "med")),
-    ("http_req_duration", "p90_ms", value("http_req_duration", "p(90)")),
-    ("http_req_duration", "p95_ms", value("http_req_duration", "p(95)")),
-    ("http_req_duration", "p99_ms", value("http_req_duration", "p(99)")),
-    ("http_req_duration", "max_ms", value("http_req_duration", "max")),
-    ("http_reqs", "count", value("http_reqs", "count")),
-    ("http_reqs", "rate_per_s", value("http_reqs", "rate")),
-    ("http_req_failed", "failure_rate", value("http_req_failed", "rate")),
+FIELDS = [
+    ('http_req_duration', 'avg', 'avg_ms'),
+    ('http_req_duration', 'med', 'p50_ms'),
+    ('http_req_duration', 'p(90)', 'p90_ms'),
+    ('http_req_duration', 'p(95)', 'p95_ms'),
+    ('http_req_duration', 'p(99)', 'p99_ms'),
+    ('http_req_duration', 'max', 'max_ms'),
+    ('http_reqs', 'count', 'count'),
+    ('http_reqs', 'rate', 'rate_per_s'),
+    ('http_req_failed', 'rate', 'failure_rate'),
 ]
 
-out = src.with_name(src.stem + "-analysis.csv")
-with out.open("w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["metric", "statistic", "value"])
-    for metric, statistic, val in rows:
-        writer.writerow([metric, statistic, val])
+def extract_rows(data):
+    metrics = data.get('metrics')
+    if not isinstance(metrics, dict):
+        raise ValueError('Missing metrics object; unsupported summary schema')
+    rows = []
+    for name, key, label in FIELDS:
+        metric = metrics.get(name)
+        if not isinstance(metric, dict):
+            raise ValueError(f'Missing metric: {name}')
+        values = metric.get('values', metric)  # handleSummary or legacy --summary-export
+        if not isinstance(values, dict):
+            raise ValueError(f'Invalid values for {name}')
+        value = values.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f'Missing/invalid {name}.{key}; include p(99) in summaryTrendStats')
+        if name == 'http_req_failed' and value > 1:
+            raise ValueError('HTTP failure rate must be in [0, 1]')
+        if name == 'http_reqs' and key == 'count' and (value <= 0 or int(value) != value):
+            raise ValueError('Request count must be a positive integer')
+        rows.append((name, label, value))
+    return rows
 
-print(out)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('summary', type=Path)
+    args = parser.parse_args()
+    try:
+        rows = extract_rows(json.loads(args.summary.read_text()))
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        parser.exit(2, f'Invalid summary: {exc}\n')
+    out = args.summary.with_name(args.summary.stem + '-analysis.csv')
+    with out.open('w', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(['metric', 'statistic', 'value'])
+        writer.writerows(rows)
+    print(out)
+
+if __name__ == '__main__':
+    main()

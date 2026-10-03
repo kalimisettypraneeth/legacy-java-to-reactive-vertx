@@ -4,9 +4,11 @@ This directory separates historical manuscript values from measurements generate
 
 ## Naming convention
 
-- paper-reported-results.md — values reported in the manuscript; reference only.
-- *-k6-summary.json — raw k6 summary export from a repository run.
+- paper-reported-results.md — values reported in the manuscript; unverified historical record only.
+- *-k6-summary.json — aggregate k6 summary export from a repository run.
 - *-analysis.csv — derived statistics from a supplied k6 summary.
 - *-environment.txt — benchmark environment metadata.
 
 Do not overwrite manuscript-reported values with reproduced values. A result becomes reproducible evidence only when the raw run, environment metadata, workload configuration, and repository commit are retained together.
+
+A summary is an aggregate, not a request-level time series. Retain the corresponding metrics stream separately. No measured results were generated during the October 3 editorial revision.

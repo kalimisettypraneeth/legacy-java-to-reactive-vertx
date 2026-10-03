@@ -1,25 +1,15 @@
-# Mathematical Model
+# Queueing and memory model
 
-## Little's Law
+For a defined, stable system, Little’s Law is `L = lambda * W`: L is mean in-system work, lambda is long-run throughput, and W is mean total time inside the same boundary (waiting plus service). Do not combine offered arrivals, completed throughput and latency across different boundaries or use this as a steady-state formula during unbounded overload.
 
-The manuscript uses Little's Law:
+A bounded servlet worker pool means L is not the platform-thread count: requests can wait in connection, executor, and database-pool queues. The earlier formula `M_total = lambda * W * stack_size + heap` is therefore not a general process-memory model.
 
-```
-L = λW
-```
+Use a measured decomposition instead:
 
-where L is the average number of items in the system, λ is arrival rate, and W is average time in the system.
+`RSS approximately equals resident heap + committed resident stacks + direct buffers + other native/runtime memory`.
 
-The manuscript models memory as:
+Reserved stack address space is not identical to resident memory. Asynchronous requests also retain state and buffers. Event-loop thread count does not equal total JVM thread count, and a fixed loop pool does not guarantee constant memory.
 
-```
-M_total = (λW) × M_s + M_heap
-```
+With P connections, one active sequential query per connection, and mean occupied time S, `P / S` is an idealized database capacity bound before overhead. For P=20 and S=0.05 seconds, this is 400 queries/s. This is explanatory arithmetic, NOT a measured benchmark. Check actual pipelining and connection behavior before applying it.
 
-where M_s represents per-thread stack memory.
-
-The reactive model instead keeps a comparatively small event-loop thread set and represents waiting work as lightweight asynchronous state.
-
-## Interpretation
-
-The equations describe why increased concurrency can produce different resource behavior even when the business operation is unchanged. They should be treated as a model of the system, not a substitute for direct measurement.
+Source: J. D. C. Little, “A Proof for the Queuing Formula: L = lambda W,” Operations Research 9(3), 383–387 (1961), https://doi.org/10.1287/opre.9.3.383.
