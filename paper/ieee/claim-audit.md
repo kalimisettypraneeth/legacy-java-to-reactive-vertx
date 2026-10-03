@@ -40,3 +40,7 @@ The revised manuscript is a practitioner-method draft. Its readiness still depen
 - Abstract: 104 whitespace-delimited words. Pre-reference material: approximately 1,762 words, including metadata. Seven references. Below the venue's stated limits.
 
 These checks do not establish application correctness or empirical performance. GitHub CI must still build and smoke-test the applications; results must be checked after the commit.
+
+## CI follow-up: executable packaging
+
+GitHub Actions run 37106540718 built both images but failed startup because the pre-existing Vert.x JAR lacked a Main-Class manifest entry (`no main manifest attribute, in app.jar`). The Maven package lifecycle now creates an executable dependency-inclusive JAR, merges service descriptors, and names the application entry point. The HTTP smoke check remains the validation gate. This packaging defect is distinct from benchmark evidence.
