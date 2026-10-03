@@ -1,0 +1,9 @@
+# Optional Linux-only memory-backed PostgreSQL storage for isolated experiments.
+# Use with docker-compose.yml; data is discarded when the container stops.
+services:
+  postgres:
+    volumes:
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+        tmpfs:
+          size: 268435456

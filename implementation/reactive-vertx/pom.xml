@@ -7,6 +7,8 @@
     <dependency><groupId>io.vertx</groupId><artifactId>vertx-core</artifactId><version>${vertx.version}</version></dependency>
     <dependency><groupId>io.vertx</groupId><artifactId>vertx-web</artifactId><version>${vertx.version}</version></dependency>
     <dependency><groupId>io.vertx</groupId><artifactId>vertx-pg-client</artifactId><version>${vertx.version}</version></dependency>
+    <!-- Vert.x 4.x requires this optional library for PostgreSQL SCRAM-SHA-256. -->
+    <dependency><groupId>com.ongres.scram</groupId><artifactId>client</artifactId><version>2.1</version></dependency>
   </dependencies>
   <build><plugins><plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version><configuration><mainClass>research.reactive.ReactiveVertxApplication</mainClass></configuration></plugin>
     <plugin>

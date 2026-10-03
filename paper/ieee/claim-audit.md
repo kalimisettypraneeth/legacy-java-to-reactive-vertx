@@ -44,3 +44,9 @@ These checks do not establish application correctness or empirical performance. 
 ## CI follow-up: executable packaging
 
 GitHub Actions run 37106540718 built both images but failed startup because the pre-existing Vert.x JAR lacked a Main-Class manifest entry (`no main manifest attribute, in app.jar`). The Maven package lifecycle now creates an executable dependency-inclusive JAR, merges service descriptors, and names the application entry point. The HTTP smoke check remains the validation gate. This packaging defect is distinct from benchmark evidence.
+
+## CI follow-up: PostgreSQL authentication and memory-backed storage
+
+Run 37106846299 showed `NoClassDefFoundError: com/ongres/scram/common/stringprep/StringPreparation` during the reactive client's PostgreSQL authentication. The Spring service had already connected to the same database. The network and PostgreSQL service were available; the pinned Vert.x 4.5.13 client lacked its optional SCRAM library. Added `com.ongres.scram:client:2.1`, as required by the Vert.x 4.x authentication documentation, without changing password authentication.
+
+Added an optional PostgreSQL tmpfs storage override and a CI matrix for both ordinary volume and tmpfs modes. This option preserves the database engine and client protocols. It changes storage conditions and is not interchangeable with disk-backed performance data. No new performance results are claimed.

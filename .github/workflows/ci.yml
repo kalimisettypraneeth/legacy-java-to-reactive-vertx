@@ -9,6 +9,12 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [disk, tmpfs]
+    env:
+      COMPOSE_FILE: ${{ matrix.storage == 'tmpfs' && 'docker-compose.yml:docker-compose.memory.yml' || 'docker-compose.yml' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +25,16 @@ jobs:
 
       - name: Build and start stack
         run: docker compose up --build -d
+
+      - name: Verify database storage and authentication configuration
+        run: |
+          mount_type=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Type}}{{end}}{{end}}' "$(docker compose ps -q postgres)")
+          if [[ '${{ matrix.storage }}' == tmpfs ]]; then
+            test "$mount_type" = tmpfs
+          else
+            test "$mount_type" = volume
+          fi
+          test "$(docker compose exec -T postgres psql -U research -d research -Atc 'SHOW password_encryption')" = scram-sha-256
 
       - name: Wait for services
         run: |
