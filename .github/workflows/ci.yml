@@ -23,7 +23,7 @@ jobs:
       - name: Wait for services
         run: |
           for i in {1..30}; do
-            if curl -fsS http://localhost:8080/health && curl -fsS http://localhost:8081/health; then
+            if curl --connect-timeout 2 --max-time 3 -fsS http://localhost:8080/health && curl --connect-timeout 2 --max-time 3 -fsS http://localhost:8081/health; then
               echo
               exit 0
             fi
@@ -34,8 +34,8 @@ jobs:
 
       - name: Verify equivalent workload
         run: |
-          test "$(curl -fsS 'http://localhost:8080/work?delayMs=10&itemId=1')" = "legacy-ok"
-          test "$(curl -fsS 'http://localhost:8081/work?delayMs=10&itemId=1')" = "reactive-ok"
+          test "$(curl --connect-timeout 2 --max-time 3 -fsS 'http://localhost:8080/work?delayMs=10&itemId=1')" = "legacy-ok"
+          test "$(curl --connect-timeout 2 --max-time 3 -fsS 'http://localhost:8081/work?delayMs=10&itemId=1')" = "reactive-ok"
 
       - name: Show logs on failure
         if: failure()

@@ -3,7 +3,6 @@ package research.reactive;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 import io.vertx.pgclient.PgBuilder;
 import io.vertx.pgclient.PgConnectOptions;
@@ -15,7 +14,11 @@ public class ReactiveVertxApplication extends AbstractVerticle {
     private Pool db;
 
     public static void main(String[] args) {
-        Vertx.vertx().deployVerticle(new ReactiveVertxApplication());
+        Vertx runtime = Vertx.vertx();
+        runtime.deployVerticle(new ReactiveVertxApplication()).onFailure(err -> {
+            err.printStackTrace();
+            runtime.close().onComplete(ignored -> System.exit(1));
+        });
     }
 
     @Override
@@ -38,7 +41,10 @@ public class ReactiveVertxApplication extends AbstractVerticle {
         router.get("/health").handler(ctx ->
                 db.query("SELECT 1").execute()
                         .onSuccess(rows -> ctx.response().end("UP"))
-                        .onFailure(err -> ctx.response().setStatusCode(503).end("DOWN")));
+                        .onFailure(err -> {
+                            err.printStackTrace();
+                            ctx.response().setStatusCode(503).end("DOWN");
+                        }));
 
         router.get("/work").handler(ctx -> {
             long delayMs = parseDelay(ctx.request().getParam("delayMs"));
